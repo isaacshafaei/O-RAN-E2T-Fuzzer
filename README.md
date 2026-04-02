@@ -1,15 +1,14 @@
 # O-RAN E2T Fuzzer
-
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Fuzzer](https://img.shields.io/badge/Fuzzer-AFL++-orange.svg)](https://aflplus.plus/)
+```bibtex
 @inproceedings{eshaghshafaei2026oran,
   title={High-Speed Fuzzing of O-RAN E2 Termination via Component Isolation},
   author={Eshagh Shafaei},
   booktitle={IEEE [Conference Name]},
   year={2026}
 }
-
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Fuzzer](https://img.shields.io/badge/Fuzzer-AFL++-orange.svg)](https://aflplus.plus/)
-
+```
 This repository contains the isolated fuzzing harness and methodology used to stress-test the O-RAN Near-RT RIC E2 Termination (E2T) service. 
 
 By utilizing an **AFL++ persistent-mode harness with shared-memory I/O** and stripping artificial `assert()` barriers from the ASN.1 library, this setup achieves up to **23,000 executions per second** without the overhead of a full Kubernetes deployment.
