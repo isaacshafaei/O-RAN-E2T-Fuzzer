@@ -1,8 +1,7 @@
 # O-RAN E2T Fuzzer
 
 @inproceedings{eshaghshafaei2026oran,
-  title={High-Speed Fuzzing of O-RAN E2 Termination via
-Component Isolation},
+  title={High-Speed Fuzzing of O-RAN E2 Termination via Component Isolation},
   author={Eshagh Shafaei},
   booktitle={IEEE [Conference Name]},
   year={2026}
