@@ -1,18 +1,19 @@
-# O-RAN E2T Fuzzer
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Fuzzer](https://img.shields.io/badge/Fuzzer-AFL++-orange.svg)](https://aflplus.plus/)
+# O-RAN E2T Stateful Fuzzer
 
-This repository contains the isolated fuzzing harness and methodology used to stress-test the O-RAN Near-RT RIC E2 Termination (E2T) service. 
+[](https://opensource.org/licenses/Apache-2.0)
+[](https://aflplus.plus/)
 
-By utilizing an **AFL++ persistent-mode harness with shared-memory I/O** and stripping artificial `assert()` barriers from the ASN.1 library, this setup achieves up to **23,000 executions per second** without the overhead of a full Kubernetes deployment.
+This repository contains the isolated, **stateful fuzzing harness** and methodology used to stress-test the O-RAN Near-RT RIC E2 Termination (E2T) service.
 
-This methodology resulted in the discovery of 6 zero-day vulnerabilities in the E2T service, including critical Heap Use-After-Free and Stack Buffer Overflow conditions.
+By utilizing an **AFL++ persistent-mode harness with a 2-Phase state injection loop**, this setup bypasses the initial connection handshake, allowing the fuzzer to mutate payloads deep inside the active state machine (e.g., `RICserviceUpdate`, `RICcontrolRequest`). This methodology achieves **\~5,000 to 8,000 stateful executions per second** without the massive overhead of a full Kubernetes deployment.
 
-## Reference
-More information about this fuzzing methodology is available in our research paper with open access [Add Link Here]. The preprint is also available on [arXiv](Add Link Here). If you use this code or methodology in your scientific work, please cite the paper as follows:
+## 📚 Reference
+
+More information about this stateful fuzzing methodology is available in our research paper [Add Link Here]. The preprint is also available on [arXiv](Add Link Here). If you use this code or methodology in your scientific work, please cite the paper as follows:
+
 ```bibtex
 @inproceedings{eshaghshafaei2026oran,
-  title={High-Speed Fuzzing of O-RAN E2 Termination via Component Isolation},
+  title={Stateful High-Speed Fuzzing of O-RAN E2 Termination via Component Isolation},
   author={Eshagh Shafaei},
   booktitle={IEEE [Conference Name]},
   year={2026}
@@ -21,27 +22,78 @@ More information about this fuzzing methodology is available in our research pap
 
 ## 🚨 Discovered Vulnerabilities
 
-| Bug ID | Vulnerability Type (CWE) | Affected Component | Impact |
-|--------|--------------------------|--------------------|--------|
-| **1** | Null-Pointer Deref. (CWE-476) | `sctpThread.cpp` (Prometheus) | DoS (Crash) |
-| **3** | Stack Use-After-Scope (CWE-908) | E2T Event Loop | Memory Corruption |
-| **4** | Stack Buffer Overflow (CWE-121) | E2T Event Loop | Stack Corruption |
-| **5** | Heap Use-After-Free (CWE-416) | `ConnectedCU_t` State Machine | RCE / Corruption |
-| **6** | Heap Buffer Overflow (CWE-122)| `RmrMessagesBuffer_t` | Heap Corruption |
-*(Bug #2 was a confirmed finding previously identified by ORANalyst).*
+This methodology filters out stateless false positives and has successfully identified critical zero-day vulnerabilities in the O-RAN E2T routing logic and ASN.1 parsers:
 
-## 🛠️ Architecture
-Unlike prior work that relies on network-bound Kubernetes deployments (<10 exec/s), this harness isolates the ASN.1 decoder and SCTP event loops in memory. Payloads are fed directly into the decoder via RAM, bypassing `fork()` overhead entirely.
+| Vulnerability | CWE | Affected Component | Impact |
+|---------------|-----|--------------------|--------|
+| **Concurrent Heap Use-After-Free** | CWE-416 | `sctpThread.cpp` (Event Loop) | RCE / Critical DoS |
+| **Unhandled Exception (Invalid Label)** | CWE-755 | Prometheus Metrics Router | Instant DoS (Crash) |
+| **ASN.1 Parser Memory Leak** | CWE-401 | `CHOICE_decode_aper` | Resource Exhaustion |
+*(Note: Refer to the paper for the full list of CVEs and detailed exploit paths).*
 
-## 🚀 Quick Start (Docker)
-We strongly recommend using the provided Docker container to ensure all LLVM and AFL++ dependencies are correctly matched.
+-----
 
+## 🛠️ Architecture: The 2-Phase Stateful Harness
+
+Unlike prior work that relies on slow, network-bound Kubernetes deployments (\<10 exec/s) or stateless harnesses that fail to reach deep protocol logic, this harness isolates the ASN.1 decoder and SCTP event loops in memory using a **2-Phase Loop**:
+
+1.  **Phase 1 (State Injection):** The harness injects a valid, hardcoded `E2SetupRequest` directly into the E2T memory. This tricks the server into thinking a radio node has successfully connected, unlocking the deeper state machine.
+2.  **Phase 2 (Weaponized Fuzzing):** The harness immediately feeds AFL++'s mutated payloads into the now-active connection, attacking deep handlers.
+3.  **Phase 3 (State Reset):** The harness intercepts the telemetry loops, wipes the `ConnectedCU_t` structures, and resets the memory for the next loop to prevent artificial memory exhaustion.
+
+*(Note: We deliberately strip the `-DUNIT_TEST` compiler flag to prevent artificial Null Pointer Dereferences that do not exist in the production binary).*
+
+-----
+
+## 🚀 Quick Start 
+
+### Option A: Using Docker (Recommended)
+We strongly recommend using the provided Docker container. The `Dockerfile` automatically downloads the required O-RAN RMR routing dependencies and compiles the C++ stateful fuzzer using the correct AddressSanitizer flags.
+
+**1. Build the fuzzer image (This will auto-compile the C++ harness)**
 ```bash
-# 1. Build the fuzzer image
-docker build -t e2t-fuzzer ./docker
+docker build -t e2t-fuzzer -f docker/Dockerfile .
 
 # 2. Run the container
 docker run -it --privileged e2t-fuzzer /bin/bash
 
 # 3. Start the fuzzing campaign
 ./scripts/run_fuzzer.sh
+```
+
+### Option B: Local Build
+
+If you are building locally with AFL++ installed, simply use the provided Makefile. The Makefile dynamically targets your `afl-clang-fast++` compiler.
+
+```bash
+cd src/
+make
+```
+
+*(If your AFL++ installation is not in your PATH, run `make CXX=/path/to/afl-clang-fast++`)*
+
+-----
+
+## 🔬 Running the Campaign & Triaging
+
+### 1\. Running the Fuzzer
+
+To prevent the fuzzer from falsely categorizing slow memory leaks (like the 184-byte ASN.1 leak) as fatal crashes, the fuzzer must be run with specific AddressSanitizer options and the `-m none` flag to remove artificial memory ceilings.
+
+Use the provided script:
+
+```bash
+./scripts/run_fuzzer.sh
+```
+
+*(This executes: `ASAN_OPTIONS="detect_leaks=0:abort_on_error=1" afl-fuzz -m none -i results/initial_corpus -o results/out_stateful -- ./src/fuzz_sctpthread_target`)*
+
+### 2\. Triaging Real Crashes
+
+AFL++ may occasionally save loop-exhaustion artifacts. **Do not test fuzzer crashes against the live, uninstrumented E2T server.** To verify if a crash is a genuine memory corruption (e.g., Segfault, Buffer Overflow, UAF), pass it through the ASan-instrumented harness manually using the triage script:
+
+```bash
+./scripts/triage_crashes.sh results/out_stateful/default/crashes/id:000000...
+```
+
+If the payload is a true zero-day, AddressSanitizer will immediately halt execution and print a red stack trace pointing to the vulnerable C++ line.
