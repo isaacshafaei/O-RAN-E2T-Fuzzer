@@ -24,14 +24,15 @@ More information about this stateful fuzzing methodology is available in our res
 
 This methodology filters out stateless false positives and has successfully identified critical zero-day vulnerabilities in the O-RAN E2T routing logic and ASN.1 parsers:
 
-| Vulnerability | CWE | Affected Component | Impact |
-|---------------|-----|--------------------|--------|
-| **Concurrent Heap Use-After-Free** | CWE-416 | `sctpThread.cpp` (Event Loop) | RCE / Critical DoS |
-| **Unhandled Exception (Invalid Label)** | CWE-755 | Prometheus Metrics Router | Instant DoS (Crash) |
-| **ASN.1 Parser Memory Leak** | CWE-401 | `CHOICE_decode_aper` | Resource Exhaustion |
-*(Note: Refer to the paper for the full list of CVEs and detailed exploit paths).*
-
------
+ID,Vulnerability Type (CWE),Triggering Payload / Condition,Location / Status,Discovery Phase
+1,Null-Pointer Deref. (CWE-476),Out-of-sequence InitiatingMessage.,asnInitiatingRequest() (Partially New),Phase 1: Stateless
+2,Null-Pointer Deref. (CWE-476),Out-of-sequence SuccessfulOutcome.,asnSuccessfulMsg() (Partially New),Phase 1: Stateless
+3,Null-Pointer Deref. (CWE-476),"Malformed UnsuccessfulOutcome (e.g., RICsubscriptionDeleteFailure).",asnUnSuccsesfulMsg() (Novel Zero-Day),Phase 1: Stateless
+4,Unhandled Exception (CWE-248),E2SetupRequest containing illegal characters in gNB ID string.,prometheus-cpp registry (Known),Phase 1: Stateless
+5,Stack Use-After-Scope (CWE-908),"Rapid, sequential delivery of crash primitives overwhelming recovery.",sctpThread.cpp:841 (New),Phase 2: Sequential
+6,Stack Buffer Overflow (CWE-121),"Rapid, sequential delivery of invalid crash primitives.",sctpThread.cpp:852 (New),Phase 2: Sequential
+7,Heap Buffer Overflow (CWE-122),"Rapid, sequential delivery of invalid crash primitives.",sctpThread.cpp:877 (New),Phase 2: Sequential
+8,Heap Use-After-Free (CWE-416),"High-volume, concurrent connection flooding.",sctpThread.cpp:1472 (New),Phase 2: Concurrent
 
 ## 🛠️ Architecture: The 2-Phase Stateful Harness
 
