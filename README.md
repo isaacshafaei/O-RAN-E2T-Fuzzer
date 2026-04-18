@@ -3,6 +3,8 @@
 [](https://opensource.org/licenses/Apache-2.0)
 [](https://aflplus.plus/)
 
+Payloads and direct code for running the payload is going to add soon
+
 This repository contains the isolated, **stateful fuzzing harness** and methodology used to stress-test the O-RAN Near-RT RIC E2 Termination (E2T) service.
 
 By utilizing an **AFL++ persistent-mode harness with a 2-Phase state injection loop**, this setup bypasses the initial connection handshake, allowing the fuzzer to mutate payloads deep inside the active state machine (e.g., `RICserviceUpdate`, `RICcontrolRequest`). This methodology achieves **\~5,000 to 8,000 stateful executions per second** without the massive overhead of a full Kubernetes deployment.
