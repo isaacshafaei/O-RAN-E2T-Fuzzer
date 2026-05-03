@@ -6,6 +6,9 @@ https://github.com/user-attachments/assets/08038972-d7ab-4b1d-97b6-a1216dda61b7
 [](https://aflplus.plus/)
 
 Payloads and direct code for running the payload is going to add soon because of zero-days vulnerabilities that we found
+----------------------
+i added the stateful in this approach
+----------------------
 
 This repository contains the isolated, **stateful fuzzing harness** and methodology used to stress-test the O-RAN Near-RT RIC E2 Termination (E2T) service.
 
