@@ -7,7 +7,7 @@ https://github.com/user-attachments/assets/08038972-d7ab-4b1d-97b6-a1216dda61b7
 
 Payloads and direct code for running the payload is going to add soon because of zero-days vulnerabilities that we found
 ----------------------
-i added the stateful in this approach
+i added the stateful in this approach opposite of ORANalyst and also i reported all bugs
 ----------------------
 
 This repository contains the isolated, **stateful fuzzing harness** and methodology used to stress-test the O-RAN Near-RT RIC E2 Termination (E2T) service.
